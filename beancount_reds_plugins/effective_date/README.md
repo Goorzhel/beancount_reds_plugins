@@ -32,14 +32,14 @@ The expense is booked in 2015, while the credit card transaction, in 2014. The
 "Assets:Hold:Insurance" account holds the money for the period in between.
 
 This plugin automates the process above. One can simply enter a single transaction with
-an `effective_date` metadata field for the posting (not the transaction) that needs to
-occur later (or earlier). This keeps the source clean and intuitive:
+an `effective_date` metadata field for the transaction that needs to occur later (or
+earlier). This keeps the source clean and intuitive:
 
 ````
 2014-12-15 * "Annual Insurance payment for 2015"
+    effective_date: 2015-01-01
     Liabilities:Credit-Card   100 USD
     Expenses:Insurance
-      effective_date: 2015-01-01
 ````
 gets rewritten into:
 ````
