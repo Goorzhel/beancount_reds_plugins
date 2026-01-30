@@ -12,15 +12,17 @@ from beancount_reds_plugins.common import common
 
 DEBUG = 0
 
-__plugins__ = ['effective_date']
+__plugins__ = ["effective_date"]
 
-LINK_FORMAT = 'edate-{date}-{random}'
+LINK_FORMAT = "edate-{date}-{random}"
 
 
 def has_valid_effective_date(entry_or_posting):
-    return entry_or_posting.meta is not None and \
-             'effective_date' in entry_or_posting.meta and \
-             type(entry_or_posting.meta['effective_date']) is datetime.date
+    return (
+        entry_or_posting.meta is not None
+        and "effective_date" in entry_or_posting.meta
+        and type(entry_or_posting.meta["effective_date"]) is datetime.date
+    )
 
 
 def has_posting_with_valid_effective_date(entry):
@@ -33,12 +35,15 @@ def has_posting_with_valid_effective_date(entry):
 def create_new_effective_date_entry(entry, date, hold_posting, original_posting):
     def cleaned(p):
         clean_meta = copy.deepcopy(p.meta)
-        clean_meta.pop('effective_date', None)
+        clean_meta.pop("effective_date", None)
         return p._replace(meta=clean_meta)
 
-    new_meta = {'original_date': entry.date}
-    effective_date_entry = entry._replace(date=date, meta={**entry.meta, **new_meta},
-                                          postings=[cleaned(hold_posting), cleaned(original_posting)])
+    new_meta = {"original_date": entry.date}
+    effective_date_entry = entry._replace(
+        date=date,
+        meta={**entry.meta, **new_meta},
+        postings=[cleaned(hold_posting), cleaned(original_posting)],
+    )
     return effective_date_entry
 
 
@@ -50,9 +55,15 @@ def build_config(config):
         if DEBUG:
             print("effective_date: Using default config", file=sys.stderr)
         holding_accts = {
-                'Expenses': {'earlier': 'Liabilities:Hold:Expenses', 'later': 'Assets:Hold:Expenses'},
-                'Income':   {'earlier': 'Assets:Hold:Income', 'later': 'Liabilities:Hold:Income'},
-                }
+            "Expenses": {
+                "earlier": "Liabilities:Hold:Expenses",
+                "later": "Assets:Hold:Expenses",
+            },
+            "Income": {
+                "earlier": "Assets:Hold:Income",
+                "later": "Liabilities:Hold:Income",
+            },
+        }
     return holding_accts
 
 
@@ -70,10 +81,7 @@ def transform(entry, holding_accts):
                 new_posting = posting._replace(meta=new_meta)
         new_postings.append(new_posting)
 
-    return entry._replace(
-        postings=new_postings,
-        meta=entry_meta
-    )
+    return entry._replace(postings=new_postings, meta=entry_meta)
 
 
 def effective_date(entries, options_map, config):
@@ -100,8 +108,11 @@ def effective_date(entries, options_map, config):
         if isinstance(entry, data.Transaction):
             if has_valid_effective_date(entry):
                 entry = transform(entry, holding_accts)
+
             if has_posting_with_valid_effective_date(entry):
                 interesting_entries.append(entry)
+            else:
+                filtered_entries.append(entry)
         else:
             filtered_entries.append(entry)
 
@@ -115,8 +126,8 @@ def effective_date(entries, options_map, config):
     # entries, and thus links each set of effective date entries
     interesting_entries_linked = []
     for entry in interesting_entries:
-        rand_string = ''.join(random.choice(string.ascii_lowercase) for i in range(3))
-        date = str(entry.date).replace('-', '')[2:]
+        rand_string = "".join(random.choice(string.ascii_lowercase) for i in range(3))
+        date = str(entry.date).replace("-", "")[2:]
         link = LINK_FORMAT.format(date=str(date), random=rand_string)
         new_entry = entry._replace(links=(entry.links or set()) | set([link]))
         interesting_entries_linked.append(new_entry)
@@ -128,25 +139,28 @@ def effective_date(entries, options_map, config):
             if not has_valid_effective_date(posting):
                 modified_entry_postings += [posting]
             else:
-                found_acct = ''
+                found_acct = ""
                 for acct in holding_accts:
                     if posting.account.startswith(acct):
                         found_acct = acct
 
                 # find earlier or later (is this necessary?)
-                holding_account = holding_accts[found_acct]['earlier']
-                if posting.meta['effective_date'] > entry.date:
-                    holding_account = holding_accts[found_acct]['later']
+                holding_account = holding_accts[found_acct]["earlier"]
+                if posting.meta["effective_date"] > entry.date:
+                    holding_account = holding_accts[found_acct]["later"]
 
                 # Replace posting in original entry with holding account
-                new_posting = posting._replace(account=posting.account.replace(found_acct, holding_account))
+                new_posting = posting._replace(
+                    account=posting.account.replace(found_acct, holding_account)
+                )
                 new_accounts.add(new_posting.account)
                 modified_entry_postings.append(new_posting)
 
                 # Create new entry at effective_date
                 hold_posting = new_posting._replace(units=-posting.units)
-                new_entry = create_new_effective_date_entry(entry, posting.meta['effective_date'],
-                                                            hold_posting, posting)
+                new_entry = create_new_effective_date_entry(
+                    entry, posting.meta["effective_date"], hold_posting, posting
+                )
                 new_entries.append(new_entry)
         modified_entry = entry._replace(postings=modified_entry_postings)
         new_entries.append(modified_entry)
@@ -158,9 +172,15 @@ def effective_date(entries, options_map, config):
 
     if DEBUG:
         elapsed_time = time.time() - start_time
-        print("effective_date [{:.1f}s]: {} entries inserted.".format(elapsed_time, len(new_entries)))
+        print(
+            "effective_date [{:.1f}s]: {} entries inserted.".format(
+                elapsed_time, len(new_entries)
+            )
+        )
 
-    new_open_entries = common.create_open_directives(new_accounts, entries, meta_desc='<effective_date>')
+    new_open_entries = common.create_open_directives(
+        new_accounts, entries, meta_desc="<effective_date>"
+    )
     retval = new_open_entries + new_entries + filtered_entries
     return retval, errors
 
