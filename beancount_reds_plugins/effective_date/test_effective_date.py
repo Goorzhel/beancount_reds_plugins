@@ -142,3 +142,22 @@ class TestEffectiveDate(unittest.TestCase):
 
         new_entries, _ = effective_date(entries, options_map, None)
         self.assertEqual(7, len(new_entries))
+
+    @loader.load_doc()
+    def test_transaction(self, entries, _, options_map):
+        """
+        2014-01-01 open Liabilities:Mastercard
+        2014-01-01 open Expenses:Taxes:Federal
+
+        2014-02-01 * "Estimated taxes for 2013"
+          effective_date: 2013-12-31
+          Liabilities:Mastercard    -2000 USD
+          Expenses:Taxes:Federal  2000 USD
+        """
+
+        new_entries, _ = effective_date(entries, options_map, None)
+        self.assertEqual(5, len(new_entries))
+
+        results = get_entries_with_narration(new_entries, "Estimated taxes")
+        self.assertEqual(datetime.date(2013, 12, 31), results[0].date)
+        self.assertEqual(datetime.date(2014, 2, 1), results[1].date)
