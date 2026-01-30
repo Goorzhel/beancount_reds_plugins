@@ -19,10 +19,10 @@ __plugins__ = ['effective_date']
 LINK_FORMAT = 'edate-{date}-{random}'
 
 
-def has_valid_effective_date(posting):
-    return posting.meta is not None and \
-             'effective_date' in posting.meta and \
-             type(posting.meta['effective_date']) is datetime.date
+def has_valid_effective_date(entry_or_posting):
+    return entry_or_posting.meta is not None and \
+             'effective_date' in entry_or_posting.meta and \
+             type(entry_or_posting.meta['effective_date']) is datetime.date
 
 
 def has_posting_with_valid_effective_date(entry):
@@ -58,6 +58,26 @@ def build_config(config):
     return holding_accts
 
 
+def transform(entry, holding_accts):
+    """Move e-date metadata from Transaction to Postings."""
+    entry_meta = copy.deepcopy(entry.meta)
+    edate = entry.meta.pop("effective_date")
+
+    new_postings = []
+    for posting in entry.postings:
+        new_posting = posting
+        for acct in holding_accts:
+            if posting.account.startswith(acct):
+                new_meta = {"effective_date": edate, **posting.meta}
+                new_posting = posting._replace(meta=new_meta)
+        new_postings.append(new_posting)
+
+    return entry._replace(
+        postings=new_postings,
+        meta=entry_meta
+    )
+
+
 def effective_date(entries, options_map, config):
     """Effective dates
 
@@ -79,8 +99,11 @@ def effective_date(entries, options_map, config):
     filtered_entries = []
     new_accounts = set()
     for entry in entries:
-        if isinstance(entry, data.Transaction) and has_posting_with_valid_effective_date(entry):
-            interesting_entries.append(entry)
+        if isinstance(entry, data.Transaction):
+            if has_valid_effective_date(entry):
+                entry = transform(entry, holding_accts)
+            if has_posting_with_valid_effective_date(entry):
+                interesting_entries.append(entry)
         else:
             filtered_entries.append(entry)
 
