@@ -117,10 +117,19 @@ def effective_date(entries, options_map, config):
                     if posting.account.startswith(acct):
                         found_acct = acct
 
-                # find earlier or later (is this necessary?)
-                holding_account = holding_accts[found_acct]['earlier']
-                if posting.meta['effective_date'] > entry.date:
+                # Find earlier or later
+                if posting.meta['effective_date'] < entry.date:
+                    holding_account = holding_accts[found_acct]['earlier']
+                elif posting.meta['effective_date'] > entry.date:
                     holding_account = holding_accts[found_acct]['later']
+                else:
+                    errors.append(
+                        EffectiveDateError(
+                            entry.meta,
+                            "Effective and actual dates are identical",
+                            entry
+                        )
+                    )
 
                 # Replace posting in original entry with holding account
                 new_posting = posting._replace(account=posting.account.replace(found_acct, holding_account))
