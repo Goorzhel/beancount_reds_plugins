@@ -7,6 +7,7 @@ import random
 import string
 import sys
 import time
+from typing import NamedTuple
 from beancount.core import data
 from beancount_reds_plugins.common import common
 
@@ -18,6 +19,10 @@ __plugins__ = ['effective_date']
 
 LINK_FORMAT = 'edate-{date}-{random}'
 
+class EffectiveDateError(NamedTuple):
+    source: data.Meta
+    message: str
+    entry: data.Directive
 
 def has_valid_effective_date(posting):
     return posting.meta is not None and \
