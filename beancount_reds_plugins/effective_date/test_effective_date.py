@@ -142,3 +142,18 @@ class TestEffectiveDate(unittest.TestCase):
 
         new_entries, _ = effective_date(entries, options_map, None)
         self.assertEqual(7, len(new_entries))
+
+    @loader.load_doc()
+    def test_meaningless_effective_dates(self, entries, _, options_map):
+        """
+        2014-01-01 open Liabilities:Mastercard
+        2014-01-01 open Expenses:Taxes:Federal
+
+        2014-02-01 * "Estimated taxes for 2013"
+          Liabilities:Mastercard    -2000 USD
+          Expenses:Taxes:Federal  2000 USD
+            effective_date: 2014-02-01
+         """
+        new_entries, errors = effective_date(entries, options_map, None)
+        self.assertEqual(1, len(errors))
+        self.assertEqual(new_entries, entries)
